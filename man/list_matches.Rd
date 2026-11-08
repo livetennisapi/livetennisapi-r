@@ -66,6 +66,6 @@ plan. Completed results need a paid plan.
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}
 live <- live_matches(tour = "atp")
-live[, c("id", "tournament", "players.p1.name", "players.p2.name")]
+if (nrow(live) > 0) live[, c("id", "tournament", "players.p1.name", "players.p2.name")]
 \dontshow{\}) # examplesIf}
 }

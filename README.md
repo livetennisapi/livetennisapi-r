@@ -40,9 +40,10 @@ You can also pass `key` to any function that needs one. It wins over the environ
 library(livetennisapi)
 
 live <- live_matches(tour = "atp")
-live[, c("id", "tournament", "players.p1.name", "players.p2.name")]
-
-match_score(live$id[1])
+if (nrow(live) > 0) {
+  print(live[, c("id", "tournament", "players.p1.name", "players.p2.name")])
+  match_score(live$id[1])
+}
 
 search_players("sinner")
 list_fixtures(tour = "wta", limit = 20)
@@ -93,13 +94,15 @@ A failed call raises a condition of class `lta_error`, with a subclass you can c
 
 | Class | When |
 |---|---|
-| `lta_auth_error` | 401 or 403: the key is missing, wrong or revoked |
-| `lta_plan_error` | the endpoint needs a higher plan |
+| `lta_auth_error` | 401: the key is missing, wrong or revoked |
+| `lta_plan_error` | 403: the endpoint needs a higher plan |
 | `lta_rate_limited` | 429: a rate limit or the daily quota was reached |
+| `lta_abuse_throttled` | 429 `abuse_throttled`: a 24-hour block, also an `lta_rate_limited` |
 | `lta_not_found` | 404 |
 | `lta_bad_request` | 400: a parameter the API refused |
 | `lta_gone` | 410: the record was merged into another, which the body names |
 | `lta_connection_error` | the API could not be reached, after three tries |
+| `lta_http_error` | any other failure, such as a 5xx after three tries |
 
 ```r
 tryCatch(rankings(system = "atp"),
@@ -108,7 +111,7 @@ tryCatch(rankings(system = "atp"),
 
 Each condition carries `status`, `code` (the API's own error code), `body` and `retry_after`.
 
-A call is tried up to three times. Dropped connections, server errors (5xx) and the per-minute 429 are retried. The client waits what the `Retry-After` header asks for, up to a minute, or backs off briefly when there is no header. The daily-quota 429 and `abuse_throttled` are raised straight away, because neither clears in seconds. The Python and JavaScript clients follow the same policy.
+A call is tried up to three times, each with a 30-second timeout. Dropped connections, timeouts, server errors (5xx) and the per-minute 429 are retried. The client waits what the `Retry-After` header asks for, up to a minute, or backs off briefly when there is no header. The daily-quota 429 and `abuse_throttled` are raised straight away, because neither clears in seconds. The Python and JavaScript clients follow the same policy.
 
 ## Other clients
 

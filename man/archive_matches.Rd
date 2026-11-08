@@ -15,6 +15,7 @@ archive_matches(
   level = NULL,
   limit = NULL,
   offset = NULL,
+  ...,
   key = NULL
 )
 
@@ -23,6 +24,7 @@ archive_players(
   tour = NULL,
   limit = NULL,
   offset = NULL,
+  ...,
   key = NULL
 )
 
@@ -44,6 +46,8 @@ In the results archive they are tournament start dates.}
 \item{limit}{Rows per page.}
 
 \item{offset}{Rows to skip, for paging.}
+
+\item{...}{Other query parameters the endpoint accepts.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 }

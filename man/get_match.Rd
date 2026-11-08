@@ -7,12 +7,14 @@
 \usage{
 get_match(match_id, key = NULL)
 
-match_score(match_id, key = NULL)
+match_score(match_id, ..., key = NULL)
 }
 \arguments{
 \item{match_id}{The match id, from \code{\link[=list_matches]{list_matches()}}.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
+
+\item{...}{Other query parameters, such as \code{sequence} for \code{match_score()}.}
 }
 \value{
 A list.
@@ -24,6 +26,6 @@ current score, which is the fastest read while a match is live.
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}
 m <- live_matches()
-match_score(m$id[1])
+if (nrow(m) > 0) match_score(m$id[1])
 \dontshow{\}) # examplesIf}
 }

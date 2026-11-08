@@ -6,7 +6,7 @@
 \alias{player_stats}
 \title{Players}
 \usage{
-search_players(search, limit = NULL, offset = NULL, key = NULL)
+search_players(search = NULL, limit = NULL, offset = NULL, ..., key = NULL)
 
 get_player(player_id, key = NULL)
 
@@ -17,16 +17,20 @@ player_stats(
   surface = NULL,
   level = NULL,
   last = NULL,
+  ...,
   key = NULL
 )
 }
 \arguments{
-\item{search}{A name or part of one.}
+\item{search}{A name or part of one. Leave it out to list ranked players
+first.}
 
 \item{limit}{Rows per page.}
 
 \item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
 \code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
+
+\item{...}{Other query parameters the endpoint accepts.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 
@@ -52,6 +56,6 @@ with filters for dates, surface and level, and needs a paid plan.
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}
 p <- search_players("alcaraz")
-get_player(p$id[1])
+if (nrow(p) > 0) get_player(p$id[1])
 \dontshow{\}) # examplesIf}
 }

@@ -44,7 +44,7 @@ api_usage <- function(key = NULL) lta_get("/usage", key = key)
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' live <- live_matches(tour = "atp")
-#' live[, c("id", "tournament", "players.p1.name", "players.p2.name")]
+#' if (nrow(live) > 0) live[, c("id", "tournament", "players.p1.name", "players.p2.name")]
 list_matches <- function(status = "live", tour = NULL, draw = NULL, player = NULL,
                          tier = NULL, from = NULL, to = NULL, limit = NULL,
                          offset = NULL, updated_since = NULL, cursor = NULL, ...,
@@ -69,20 +69,21 @@ live_matches <- function(tour = NULL, ..., key = NULL) {
 #' current score, which is the fastest read while a match is live.
 #'
 #' @param match_id The match id, from [list_matches()].
+#' @param ... Other query parameters, such as `sequence` for `match_score()`.
 #' @inheritParams lta_get
 #' @return A list.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' m <- live_matches()
-#' match_score(m$id[1])
+#' if (nrow(m) > 0) match_score(m$id[1])
 get_match <- function(match_id, key = NULL) {
   lta_get(paste0("/matches/", lta_id(match_id)), key = key)
 }
 
 #' @rdname get_match
 #' @export
-match_score <- function(match_id, key = NULL) {
-  lta_get(paste0("/matches/", lta_id(match_id), "/score"), key = key)
+match_score <- function(match_id, ..., key = NULL) {
+  lta_get(paste0("/matches/", lta_id(match_id), "/score"), list(...), key = key)
 }
 
 #' Upcoming fixtures
@@ -106,7 +107,8 @@ list_fixtures <- function(tour = NULL, draw = NULL, limit = NULL, offset = NULL,
 #' player's profile and ranking. `player_stats()` returns a player's record,
 #' with filters for dates, surface and level, and needs a paid plan.
 #'
-#' @param search A name or part of one.
+#' @param search A name or part of one. Leave it out to list ranked players
+#'   first.
 #' @param player_id The player id.
 #' @param surface `"hard"`, `"clay"`, `"grass"` or `"indoor"`.
 #' @param level A tour code, as in [list_matches()].
@@ -116,9 +118,9 @@ list_fixtures <- function(tour = NULL, draw = NULL, limit = NULL, offset = NULL,
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' p <- search_players("alcaraz")
-#' get_player(p$id[1])
-search_players <- function(search, limit = NULL, offset = NULL, key = NULL) {
-  lta_list("/players", list(search = search, limit = limit, offset = offset), key)
+#' if (nrow(p) > 0) get_player(p$id[1])
+search_players <- function(search = NULL, limit = NULL, offset = NULL, ..., key = NULL) {
+  lta_list("/players", c(list(search = search, limit = limit, offset = offset), list(...)), key)
 }
 
 #' @rdname search_players
@@ -130,8 +132,9 @@ get_player <- function(player_id, key = NULL) {
 #' @rdname search_players
 #' @export
 player_stats <- function(player_id, from = NULL, to = NULL, surface = NULL,
-                         level = NULL, last = NULL, key = NULL) {
-  query <- list(from = from, to = to, surface = surface, level = level, last = last)
+                         level = NULL, last = NULL, ..., key = NULL) {
+  query <- c(list(from = from, to = to, surface = surface, level = level, last = last),
+             list(...))
   lta_get(paste0("/players/", lta_id(player_id), "/stats"), query, key = key)
 }
 
@@ -148,10 +151,11 @@ player_stats <- function(player_id, from = NULL, to = NULL, surface = NULL,
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' list_tournaments(search = "open", tier = "grand_slam")
 list_tournaments <- function(search = NULL, tour = NULL, draw = NULL, tier = NULL,
-                             limit = NULL, offset = NULL, key = NULL) {
-  query <- list(search = search, tour = tour, draw = draw,
-                tier = if (is.null(tier)) NULL else paste(tier, collapse = ","),
-                limit = limit, offset = offset)
+                             limit = NULL, offset = NULL, ..., key = NULL) {
+  query <- c(list(search = search, tour = tour, draw = draw,
+                  tier = if (is.null(tier)) NULL else paste(tier, collapse = ","),
+                  limit = limit, offset = offset),
+             list(...))
   lta_list("/tournaments", query, key)
 }
 
@@ -181,17 +185,18 @@ get_tournament <- function(tournament_id, key = NULL) {
 #' archive_matches(tour = "atp", name = "federer", round = "F", level = "G")
 archive_matches <- function(tour = NULL, name = NULL, from = NULL, to = NULL,
                             round = NULL, level = NULL, limit = NULL, offset = NULL,
-                            key = NULL) {
-  query <- list(tour = tour, name = name, from = from, to = to, round = round,
-                level = level, limit = limit, offset = offset)
+                            ..., key = NULL) {
+  query <- c(list(tour = tour, name = name, from = from, to = to, round = round,
+                  level = level, limit = limit, offset = offset),
+             list(...))
   lta_list("/history/archive/matches", query, key)
 }
 
 #' @rdname archive_matches
 #' @export
 archive_players <- function(name = NULL, tour = NULL, limit = NULL, offset = NULL,
-                            key = NULL) {
-  query <- list(name = name, tour = tour, limit = limit, offset = offset)
+                            ..., key = NULL) {
+  query <- c(list(name = name, tour = tour, limit = limit, offset = offset), list(...))
   lta_list("/history/archive/players", query, key)
 }
 

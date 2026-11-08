@@ -12,13 +12,15 @@ list_tournaments(
   tier = NULL,
   limit = NULL,
   offset = NULL,
+  ...,
   key = NULL
 )
 
 get_tournament(tournament_id, key = NULL)
 }
 \arguments{
-\item{search}{A name or part of one.}
+\item{search}{A name or part of one. Leave it out to list ranked players
+first.}
 
 \item{tour}{One of \code{"atp"}, \code{"wta"}, \code{"challenger"}, \code{"itf"} or \code{"juniors"}.}
 
@@ -31,6 +33,8 @@ get_tournament(tournament_id, key = NULL)
 
 \item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
 \code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
+
+\item{...}{Other query parameters the endpoint accepts.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 

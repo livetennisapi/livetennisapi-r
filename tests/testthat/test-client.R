@@ -239,11 +239,12 @@ test_that("odd error bodies still raise lta_error", {
   }
 })
 
-test_that("403 without upgrade_required is an auth error, 410 is lta_gone", {
+test_that("every 403 is a plan error, as the spec defines it, and 410 is lta_gone", {
   httr2::local_mocked_responses(function(req) {
-    json_response(list(error = "forbidden", detail = "key revoked"), status = 403L)
+    httr2::response(status_code = 403L, headers = list(`Content-Type` = "text/html"),
+                    body = charToRaw("<html>forbidden</html>"))
   })
-  expect_error(with_key(get_match(1)), class = "lta_auth_error")
+  expect_error(with_key(get_match(1)), class = "lta_plan_error")
   httr2::local_mocked_responses(function(req) {
     json_response(list(error = "merged", detail = "now 99"), status = 410L)
   })
@@ -310,4 +311,73 @@ test_that("rankings sends as_of, offset and repeated systems", {
 
 test_that("lta_meta is NULL on something that is not a list result", {
   expect_null(lta_meta(data.frame(a = 1)))
+})
+
+test_that("times go out in UTC whether POSIXct or POSIXlt", {
+  ct <- as.POSIXct("2026-11-01 12:00:00", tz = "Asia/Jerusalem")
+  lt <- as.POSIXlt("2026-11-01 12:00:00", tz = "Asia/Jerusalem")
+  expect_equal(lta_value(ct), "2026-11-01T10:00:00Z")
+  expect_equal(lta_value(lt), "2026-11-01T10:00:00Z")
+})
+
+test_that("numbers are formatted one by one, with no padding or rounding", {
+  expect_equal(lta_value(c(1, 100000, 2.5)), c("1", "100000", "2.5"))
+  expect_equal(lta_value(1234567.891), "1234567.891")
+})
+
+test_that("a NULL, NA or empty id is refused before any request", {
+  httr2::local_mocked_responses(function(req) stop("no request should be sent"))
+  for (bad in list(NULL, NA, NA_real_, "", c(1, 2))) {
+    expect_error(with_key(get_match(bad)), "one value")
+  }
+})
+
+test_that("a key is trimmed and an empty key counts as missing", {
+  seen <- NULL
+  httr2::local_mocked_responses(function(req) {
+    seen <<- req
+    json_response(list(principal = "x"))
+  })
+  api_usage(key = "  twjp_pad\n")
+  expect_equal(auth_header(seen), "Bearer twjp_pad")
+  expect_error(api_usage(key = ""), class = "lta_auth_error")
+  expect_error(with_key(lta_key(), key = "   "), class = "lta_auth_error")
+})
+
+test_that("abuse_throttled has its own class under lta_rate_limited", {
+  httr2::local_mocked_responses(function(req) {
+    json_response(list(error = "abuse_throttled"), status = 429L)
+  })
+  err <- tryCatch(with_key(get_match(1)), lta_error = function(e) e)
+  expect_s3_class(err, "lta_abuse_throttled")
+  expect_s3_class(err, "lta_rate_limited")
+})
+
+test_that("every request carries a 30-second timeout", {
+  seen <- NULL
+  httr2::local_mocked_responses(function(req) {
+    seen <<- req
+    json_response(list(status = "ok"))
+  })
+  api_health()
+  expect_equal(seen$options$timeout_ms, 30000)
+})
+
+test_that("wrappers pass extra query parameters through ...", {
+  seen <- character()
+  httr2::local_mocked_responses(function(req) {
+    seen <<- c(seen, req$url)
+    json_response(list(data = list(), meta = list()))
+  })
+  with_key({
+    match_score(7, sequence = 12)
+    search_players(restated_since = "2026-11-01")
+    archive_players(player_id = 5)
+    list_tournaments(country = "fra")
+  })
+  expect_match(seen[1], "sequence=12")
+  expect_match(seen[2], "restated_since=2026-11-01")
+  expect_false(grepl("search=", seen[2]))
+  expect_match(seen[3], "player_id=5")
+  expect_match(seen[4], "country=fra")
 })

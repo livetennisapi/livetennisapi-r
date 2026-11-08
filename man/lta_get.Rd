@@ -27,16 +27,19 @@ reference at \url{https://docs.livetennisapi.com/reference.html}.
 }
 \details{
 Failures raise a condition of class \code{lta_error}, with a subclass you can
-catch: \code{lta_auth_error} (401 or 403), \code{lta_plan_error} (the endpoint needs a
-higher plan), \code{lta_rate_limited} (429), \code{lta_not_found} (404),
-\code{lta_bad_request} (400), \code{lta_gone} (410: the record was merged into
-another, and the body says which) or \code{lta_connection_error} (the API could
-not be reached). The condition carries \code{status}, \code{code}
+catch: \code{lta_auth_error} (401), \code{lta_plan_error} (403: the endpoint needs a
+higher plan), \code{lta_rate_limited} (429, with \code{lta_abuse_throttled} for the
+24-hour block), \code{lta_not_found} (404), \code{lta_bad_request} (400), \code{lta_gone}
+(410: the record was merged into another, and the body says which),
+\code{lta_connection_error} (the API could not be reached) or \code{lta_http_error}
+(anything else, such as a 5xx after the retries). The condition carries
+\code{status}, \code{code}
 (the API's machine-readable error), \code{body} and \code{retry_after}.
 
-A call is tried up to three times. Dropped connections, server errors (5xx)
-and the per-minute 429 are retried, waiting what \code{Retry-After} asks for (at most a minute) or
-a short backoff. The daily-quota 429 and \code{abuse_throttled} are raised at
+A call is tried up to three times, each with a 30-second timeout. Dropped
+connections, timeouts, server errors (5xx) and the per-minute 429 are
+retried, waiting what \code{Retry-After} asks for (at most a minute) or a short
+backoff. The daily-quota 429 and \code{abuse_throttled} are raised at
 once, because neither clears in seconds.
 }
 \examples{

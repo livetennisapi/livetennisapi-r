@@ -20,9 +20,13 @@ lta_base_url <- function() {
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' # TRUE when a key is set. The key itself is never printed.
 #' nzchar(lta_key())
-lta_key <- function() {
-  key <- Sys.getenv("LIVETENNISAPI_KEY", "")
-  if (identical(key, "")) {
+lta_key <- function() lta_check_key(Sys.getenv("LIVETENNISAPI_KEY", ""))
+
+# A key with stray spaces or newlines (easy to paste into ~/.Renviron) is
+# trimmed. An empty one is the same as no key.
+lta_check_key <- function(key) {
+  key <- trimws(as.character(key)[1])
+  if (is.na(key) || identical(key, "")) {
     stop(structure(
       class = c("lta_auth_error", "lta_error", "error", "condition"),
       list(
@@ -38,17 +42,30 @@ lta_key <- function() {
 }
 
 # One value as the API reads it. Numbers never go out in scientific notation:
-# as.character(100000) is "1e+05", which the API refuses as an id.
+# as.character(100000) is "1e+05", which the API refuses as an id. Each number
+# is formatted on its own, so c(1, 2.5) does not become "1.0" "2.5". A POSIXlt
+# goes through POSIXct first, because format() ignores `tz` on a POSIXlt.
 lta_value <- function(x) {
   if (is.logical(x)) return(ifelse(x, "true", "false"))
   if (inherits(x, "Date")) return(format(x, "%Y-%m-%d"))
-  if (inherits(x, "POSIXt")) return(format(x, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
-  if (is.numeric(x)) return(format(x, scientific = FALSE, trim = TRUE))
+  if (inherits(x, "POSIXt")) {
+    return(format(as.POSIXct(x), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
+  }
+  if (is.numeric(x)) {
+    return(vapply(x, function(v) format(v, scientific = FALSE, trim = TRUE, digits = 15),
+                  character(1), USE.NAMES = FALSE))
+  }
   as.character(x)
 }
 
-# A path segment, such as a match id.
-lta_id <- function(x) utils::URLencode(lta_value(x), reserved = TRUE)
+# A path segment, such as a match id. A NULL, NA or empty id would build a
+# different path (/matches/ is the list), so it is refused here.
+lta_id <- function(x) {
+  if (length(x) != 1L || is.na(x) || identical(as.character(x), "")) {
+    stop("An id must be one value, not NULL, NA or empty.", call. = FALSE)
+  }
+  utils::URLencode(lta_value(x), reserved = TRUE)
+}
 
 # Turn R values into query strings: drop NULL and NA (element by element),
 # write logicals as true/false and dates as YYYY-MM-DD. Vectors longer than one
@@ -121,10 +138,15 @@ lta_condition <- function(resp) {
   code <- if (is.null(body$error)) NA_character_ else as.character(body$error)[1]
   detail <- if (is.null(body$detail)) httr2::resp_status_desc(resp) else as.character(body$detail)[1]
   if (length(detail) == 0L || is.na(detail)) detail <- "request failed"
-  subclass <- if (status %in% c(401L, 403L)) {
-    if (identical(code, "upgrade_required")) "lta_plan_error" else "lta_auth_error"
+  # The spec gives 401 to a missing, unknown or disabled key and 403 to a call
+  # the plan does not cover, which is how the Python client reads them too.
+  subclass <- if (status == 401L) {
+    "lta_auth_error"
+  } else if (status == 403L) {
+    "lta_plan_error"
   } else if (status == 429L) {
-    "lta_rate_limited"
+    if (identical(code, "abuse_throttled")) c("lta_abuse_throttled", "lta_rate_limited")
+    else "lta_rate_limited"
   } else if (status == 404L) {
     "lta_not_found"
   } else if (status == 400L) {
@@ -152,16 +174,19 @@ lta_condition <- function(resp) {
 #' reference at <https://docs.livetennisapi.com/reference.html>.
 #'
 #' Failures raise a condition of class `lta_error`, with a subclass you can
-#' catch: `lta_auth_error` (401 or 403), `lta_plan_error` (the endpoint needs a
-#' higher plan), `lta_rate_limited` (429), `lta_not_found` (404),
-#' `lta_bad_request` (400), `lta_gone` (410: the record was merged into
-#' another, and the body says which) or `lta_connection_error` (the API could
-#' not be reached). The condition carries `status`, `code`
+#' catch: `lta_auth_error` (401), `lta_plan_error` (403: the endpoint needs a
+#' higher plan), `lta_rate_limited` (429, with `lta_abuse_throttled` for the
+#' 24-hour block), `lta_not_found` (404), `lta_bad_request` (400), `lta_gone`
+#' (410: the record was merged into another, and the body says which),
+#' `lta_connection_error` (the API could not be reached) or `lta_http_error`
+#' (anything else, such as a 5xx after the retries). The condition carries
+#' `status`, `code`
 #' (the API's machine-readable error), `body` and `retry_after`.
 #'
-#' A call is tried up to three times. Dropped connections, server errors (5xx)
-#' and the per-minute 429 are retried, waiting what `Retry-After` asks for (at most a minute) or
-#' a short backoff. The daily-quota 429 and `abuse_throttled` are raised at
+#' A call is tried up to three times, each with a 30-second timeout. Dropped
+#' connections, timeouts, server errors (5xx) and the per-minute 429 are
+#' retried, waiting what `Retry-After` asks for (at most a minute) or a short
+#' backoff. The daily-quota 429 and `abuse_throttled` are raised at
 #' once, because neither clears in seconds.
 #'
 #' @param path The endpoint path, for example `"/matches"`.
@@ -183,8 +208,9 @@ lta_get <- function(path, query = list(), key = NULL, auth = TRUE, simplify = FA
             utils::packageVersion("livetennisapi"))
   )
   if (isTRUE(auth)) {
-    req <- httr2::req_auth_bearer_token(req, if (is.null(key)) lta_key() else key)
+    req <- httr2::req_auth_bearer_token(req, if (is.null(key)) lta_key() else lta_check_key(key))
   }
+  req <- httr2::req_timeout(req, 30)
   req <- httr2::req_error(req, is_error = function(resp) FALSE)
   resp <- lta_perform(req)
   if (httr2::resp_status(resp) >= 400L) stop(lta_condition(resp))
@@ -197,7 +223,7 @@ lta_get <- function(path, query = list(), key = NULL, auth = TRUE, simplify = FA
 
 # A list endpoint answers {data: [...], meta: {...}}. The body is parsed once
 # with simplification, so `data` arrives as a data frame with nested objects
-# flattened into columns such as players.p1.name, at full numeric precision.
+# flattened into columns such as players.p1.name, without rounding digits.
 # It goes out as a tibble, with `meta` kept as an attribute for paging.
 lta_frame <- function(body) {
   out <- body$data
