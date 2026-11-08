@@ -26,7 +26,7 @@ player_stats(
 \item{limit}{Rows per page.}
 
 \item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
-\code{offset} until \code{attr(x, "meta")$has_more} is \code{FALSE}.}
+\code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 
@@ -42,12 +42,12 @@ In the results archive they are tournament start dates.}
 \item{last}{Only the most recent matches, this many.}
 }
 \value{
-\code{search_players()} returns a data frame; the others return lists.
+\code{search_players()} returns a tibble. The others return lists.
 }
 \description{
 \code{search_players()} finds players by name. \code{get_player()} returns one
 player's profile and ranking. \code{player_stats()} returns a player's record,
-with filters for dates, surface and level, and needs the PRO plan.
+with filters for dates, surface and level, and needs a paid plan.
 }
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}

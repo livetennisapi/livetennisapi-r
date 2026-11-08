@@ -4,14 +4,14 @@
 
 # livetennisapi for R
 
-**R client for the [Live Tennis API](https://livetennisapi.com).**
+**Live tennis scores, fixtures, players and rankings from the [Live Tennis API](https://livetennisapi.com), as tibbles.**
 
-Live scores, fixtures, players, rankings, head-to-head records and the 1968 to 2022 results archive, as data frames. Covers the ATP, WTA, Challenger, ITF and junior tours.
+Covers the ATP, WTA, Challenger and ITF tours, plus head-to-head records and the 1968 to 2022 results archive.
 
 [![R-CMD-check](https://github.com/livetennisapi/livetennisapi-r/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/livetennisapi/livetennisapi-r/actions/workflows/R-CMD-check.yaml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
 
-[**Website**](https://livetennisapi.com) · [**Documentation**](https://docs.livetennisapi.com) · [**Get a free API key**](https://livetennisapi.com/subscribe/free) · [**Pricing**](https://livetennisapi.com/pricing) · [**Changelog**](https://docs.livetennisapi.com/changelog.html)
+[**Website**](https://livetennisapi.com) · [**Documentation**](https://docs.livetennisapi.com) · [**Pricing**](https://livetennisapi.com/pricing) · [**Changelog**](https://docs.livetennisapi.com/changelog.html) · [**Get a free API key**](https://livetennisapi.com/subscribe/free)
 
 </div>
 
@@ -48,40 +48,44 @@ search_players("sinner")
 list_fixtures(tour = "wta", limit = 20)
 ```
 
-The results archive covers 1968 to 2022 and needs the BASIC plan or a history plan:
+The results archive (1968 to 2022) and head-to-head records are on the Basic plan and up:
 
 ```r
 finals <- archive_matches(tour = "atp", name = "federer", round = "F", level = "G")
 head_to_head("djokovic", "nadal")$totals
 ```
 
-Rankings tables need PRO. Elo ratings and per-player rankings need ULTRA:
+Ranking tables are on the Pro plan and up. Elo ratings and per-player records come in through the same function:
 
 ```r
 rankings(system = "atp", limit = 100)
 rankings(system = "elo", tour = "wta", surface = "clay")
 ```
 
-List endpoints return a data frame with nested fields flattened into columns, such as `players.p1.name`. The response's `meta` is kept as `attr(x, "meta")`. To read a whole filtered set, raise `offset` by `limit` until `attr(x, "meta")$has_more` is `FALSE`. Single resources come back as lists.
+List endpoints return a tibble with nested fields flattened into columns, such as `players.p1.name`. `lta_meta(x)` returns the paging details. To read a whole filtered set, raise `offset` by `limit` until `lta_meta(x)$has_more` is `FALSE`. Single resources come back as lists.
 
 ## Functions
 
-| Function | Endpoint | Plan |
+| Function | Endpoint | Returns |
 |---|---|---|
-| `api_health()` | `GET /health` | no key |
-| `api_usage()` | `GET /usage` | any |
-| `live_matches()`, `list_matches()` | `GET /matches` | FREE for live and upcoming |
-| `get_match()`, `match_score()` | `GET /matches/{id}`, `/score` | FREE |
-| `list_fixtures()` | `GET /fixtures` | FREE |
-| `search_players()`, `get_player()` | `GET /players`, `/players/{id}` | FREE |
-| `player_stats()` | `GET /players/{id}/stats` | PRO |
-| `list_tournaments()`, `get_tournament()` | `GET /tournaments` | FREE |
-| `archive_matches()`, `archive_players()`, `archive_career()` | `GET /history/archive/...` | BASIC |
-| `head_to_head()` | `GET /h2h` | BASIC |
-| `rankings()` | `GET /rankings` | PRO, or ULTRA for Elo and per-player rankings |
-| `lta_get()` | any endpoint | depends |
+| `api_health()` | `GET /health` (no key) | list |
+| `api_usage()` | `GET /usage` | list |
+| `live_matches()`, `list_matches()` | `GET /matches` | tibble |
+| `get_match()`, `match_score()` | `GET /matches/{id}`, `/score` | list |
+| `list_fixtures()` | `GET /fixtures` | tibble |
+| `search_players()` | `GET /players` | tibble |
+| `get_player()`, `player_stats()` | `GET /players/{id}`, `/stats` | list |
+| `list_tournaments()` | `GET /tournaments` | tibble |
+| `get_tournament()` | `GET /tournaments/{id}` | list |
+| `archive_matches()`, `archive_players()` | `GET /history/archive/...` | tibble |
+| `archive_career()` | `GET /history/archive/career` | list |
+| `head_to_head()` | `GET /h2h` | list |
+| `rankings()` | `GET /rankings` | tibble |
+| `lta_get()` | any endpoint | list |
 
-`lta_get()` calls any endpoint in the [API reference](https://docs.livetennisapi.com/reference.html) that has no wrapper yet. Plans and prices are on the [pricing page](https://livetennisapi.com/pricing).
+The free plan opens live and upcoming matches, scores, players, fixtures and tournaments, at 30 requests a minute and 100 a day. Each paid plan adds more, and the [pricing page](https://livetennisapi.com/pricing) lists what each one opens. A call your plan does not cover raises `lta_plan_error`.
+
+`lta_get()` calls any endpoint in the [API reference](https://docs.livetennisapi.com/reference.html) that has no wrapper yet.
 
 ## Errors
 
@@ -95,17 +99,24 @@ A failed call raises a condition of class `lta_error`, with a subclass you can c
 | `lta_not_found` | 404 |
 | `lta_bad_request` | 400: a parameter the API refused |
 | `lta_gone` | 410: the record was merged into another, which the body names |
+| `lta_connection_error` | the API could not be reached, after three tries |
 
 ```r
 tryCatch(rankings(system = "atp"),
          lta_plan_error = function(e) message("Rankings need the PRO plan"))
 ```
 
-Each condition carries `status`, `code` (the API's own error code) and `body`. Failed gateway responses (502, 503 and 504) are retried up to three times. A 429 is never retried: read the condition and wait before calling again.
+Each condition carries `status`, `code` (the API's own error code), `body` and `retry_after`.
+
+A call is tried up to three times. Dropped connections, server errors (5xx) and the per-minute 429 are retried. The client waits what the `Retry-After` header asks for, up to a minute, or backs off briefly when there is no header. The daily-quota 429 and `abuse_throttled` are raised straight away, because neither clears in seconds. The Python and JavaScript clients follow the same policy.
 
 ## Other clients
 
 The same API has official clients for [Python](https://github.com/livetennisapi/livetennisapi-python), [JavaScript and TypeScript](https://github.com/livetennisapi/livetennisapi-js), [Go](https://github.com/livetennisapi/livetennisapi-go), [PHP](https://github.com/livetennisapi/livetennisapi-php), [.NET](https://github.com/livetennisapi/livetennisapi-dotnet), [Dart](https://github.com/livetennisapi/livetennisapi-dart) and [Swift](https://github.com/livetennisapi/livetennisapi-swift), and an [MCP server](https://github.com/livetennisapi/livetennisapi-mcp).
+
+## Changes
+
+Package releases are listed in [NEWS.md](NEWS.md). Changes to the API itself are in the [API changelog](https://docs.livetennisapi.com/changelog.html).
 
 ## License
 

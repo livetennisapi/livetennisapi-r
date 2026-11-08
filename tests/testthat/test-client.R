@@ -54,7 +54,7 @@ test_that("api_health sends no key", {
   expect_null(auth_header(seen))
 })
 
-test_that("list endpoints return a flattened data frame with meta", {
+test_that("list endpoints return a flattened tibble with meta", {
   httr2::local_mocked_responses(function(req) {
     json_response(list(
       data = list(
@@ -65,16 +65,16 @@ test_that("list endpoints return a flattened data frame with meta", {
     ))
   })
   out <- with_key(live_matches())
-  expect_s3_class(out, "data.frame")
+  expect_s3_class(out, "tbl_df")
   expect_equal(nrow(out), 2)
   expect_equal(out$players.p1.name, c("A", "C"))
-  expect_equal(attr(out, "meta")$next_cursor, "abc")
+  expect_equal(lta_meta(out)$next_cursor, "abc")
 })
 
-test_that("an empty list is an empty data frame", {
+test_that("an empty list is an empty tibble", {
   httr2::local_mocked_responses(function(req) json_response(list(data = list(), meta = list())))
   out <- with_key(list_fixtures())
-  expect_s3_class(out, "data.frame")
+  expect_s3_class(out, "tbl_df")
   expect_equal(nrow(out), 0)
 })
 
@@ -98,17 +98,97 @@ test_that("errors raise typed conditions with the API's code", {
   }
 })
 
-test_that("the retry policy covers 502, 503 and 504 and never a 429", {
-  seen <- NULL
+test_that("5xx and the per-minute 429 are transient; the daily cap and abuse block are not", {
+  expect_true(lta_transient(httr2::response(status_code = 500L)))
+  expect_true(lta_transient(httr2::response(status_code = 503L)))
+  expect_true(lta_transient(json_response(list(error = "rate_limited"), status = 429L)))
+  expect_false(lta_transient(json_response(list(error = "rate_limited", scope = "day"),
+                                           status = 429L)))
+  expect_false(lta_transient(json_response(list(error = "abuse_throttled"), status = 429L)))
+  for (code in c(400L, 401L, 403L, 404L, 410L)) {
+    expect_false(lta_transient(httr2::response(status_code = code)))
+  }
+})
+
+test_that("Retry-After is honoured and capped at a minute", {
+  hdr <- function(v) httr2::response(status_code = 429L, headers = list(`Retry-After` = v))
+  expect_equal(lta_retry_after(hdr("7")), 7)
+  expect_equal(lta_retry_after(hdr("3600")), 60)
+  expect_true(is.na(lta_retry_after(hdr("soon"))))
+  expect_true(is.na(lta_retry_after(httr2::response(status_code = 429L))))
+  expect_lte(lta_backoff(10), 10)
+  expect_gte(lta_backoff(1), 0.5)
+})
+
+test_that("a per-minute 429 is retried and the next answer is returned", {
+  waits <- numeric()
+  local_mocked_bindings(lta_sleep = function(seconds) waits <<- c(waits, seconds))
+  calls <- 0L
   httr2::local_mocked_responses(function(req) {
-    seen <<- req
-    json_response(list(status = "ok"))
+    calls <<- calls + 1L
+    if (calls == 1L) {
+      json_response(list(error = "rate_limited"), status = 429L,
+                    headers = list(`Retry-After` = "7"))
+    } else {
+      json_response(list(data = list(list(id = 5)), meta = list(has_more = FALSE)))
+    }
   })
-  api_health()
-  transient <- seen$policies$retry_is_transient
-  expect_false(transient(httr2::response(status_code = 429L)))
-  expect_false(transient(httr2::response(status_code = 500L)))
-  for (code in c(502L, 503L, 504L)) expect_true(transient(httr2::response(status_code = code)))
+  out <- with_key(live_matches())
+  expect_equal(calls, 2L)
+  expect_equal(waits, 7)
+  expect_equal(out$id, 5)
+})
+
+test_that("the daily-cap 429 is raised at once with its Retry-After", {
+  local_mocked_bindings(lta_sleep = function(seconds) stop("must not wait"))
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(list(error = "rate_limited", scope = "day"), status = 429L,
+                  headers = list(`Retry-After` = "3600"))
+  })
+  err <- tryCatch(with_key(live_matches()), lta_error = function(e) e)
+  expect_equal(calls, 1L)
+  expect_s3_class(err, "lta_rate_limited")
+  expect_equal(err$retry_after, "3600")
+})
+
+test_that("a 5xx is tried three times, then raised", {
+  waits <- numeric()
+  local_mocked_bindings(lta_sleep = function(seconds) waits <<- c(waits, seconds))
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(list(error = "upstream"), status = 503L)
+  })
+  expect_error(with_key(get_match(1)), class = "lta_http_error")
+  expect_equal(calls, 3L)
+  expect_length(waits, 2L)
+})
+
+test_that("a 4xx is never retried", {
+  local_mocked_bindings(lta_sleep = function(seconds) stop("must not wait"))
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    json_response(list(error = "bad_tour"), status = 400L)
+  })
+  expect_error(with_key(get_match(1)), class = "lta_bad_request")
+  expect_equal(calls, 1L)
+})
+
+test_that("a dropped connection is retried, then raised as lta_connection_error", {
+  local_mocked_bindings(lta_sleep = function(seconds) NULL)
+  calls <- 0L
+  httr2::local_mocked_responses(function(req) {
+    calls <<- calls + 1L
+    stop(structure(class = c("httr2_failure", "httr2_error", "error", "condition"),
+                   list(message = "Could not resolve host", call = NULL)))
+  })
+  err <- tryCatch(with_key(get_match(1)), lta_error = function(e) e)
+  expect_s3_class(err, "lta_connection_error")
+  expect_equal(calls, 3L)
+  expect_match(conditionMessage(err), "Could not resolve host")
 })
 
 test_that("round-number ids never go out in scientific notation", {
@@ -150,6 +230,7 @@ test_that("odd error bodies still raise lta_error", {
                     body = charToRaw("<html>bad gateway</html>")),
     json_response("oops", status = 500L)
   )
+  local_mocked_bindings(lta_sleep = function(seconds) NULL)
   for (b in bodies) {
     httr2::local_mocked_responses(function(req) b)
     err <- tryCatch(with_key(get_match(1)), lta_error = function(e) e)
@@ -200,4 +281,33 @@ test_that("wrappers hit the documented paths", {
                         "/players/3/stats", "/tournaments", "/tournaments/9",
                         "/history/archive/matches", "/history/archive/players",
                         "/history/archive/career", "/h2h", "/rankings"))
+})
+
+test_that("fixtures, players and rankings come back as tibbles", {
+  httr2::local_mocked_responses(function(req) {
+    json_response(list(data = list(list(id = 1, name = "A")), meta = list(has_more = TRUE)))
+  })
+  with_key({
+    for (out in list(list_fixtures(), search_players("abc"), rankings(system = "atp"),
+                     list_tournaments(), archive_matches(), archive_players())) {
+      expect_s3_class(out, "tbl_df")
+      expect_true(lta_meta(out)$has_more)
+    }
+  })
+})
+
+test_that("rankings sends as_of, offset and repeated systems", {
+  seen <- NULL
+  httr2::local_mocked_responses(function(req) {
+    seen <<- req
+    json_response(list(data = list(), meta = list()))
+  })
+  with_key(rankings(system = c("atp", "wta"), as_of = as.Date("2024-01-01"), offset = 100))
+  expect_match(seen$url, "system=atp&system=wta")
+  expect_match(seen$url, "as_of=2024-01-01")
+  expect_match(seen$url, "offset=100")
+})
+
+test_that("lta_meta is NULL on something that is not a list result", {
+  expect_null(lta_meta(data.frame(a = 1)))
 })

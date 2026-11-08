@@ -42,12 +42,12 @@ In the results archive they are tournament start dates.}
 \item{limit}{Rows per page.}
 
 \item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
-\code{offset} until \code{attr(x, "meta")$has_more} is \code{FALSE}.}
+\code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
 
 \item{updated_since}{Read the change feed: rows changed at or after this
 time, oldest first. Page it with \code{cursor}.}
 
-\item{cursor}{\code{attr(x, "meta")$next_cursor} from the previous change-feed
+\item{cursor}{\code{lta_meta(x)$next_cursor} from the previous change-feed
 page.}
 
 \item{...}{Other query parameters the endpoint accepts.}
@@ -55,13 +55,13 @@ page.}
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 }
 \value{
-A data frame, one row per match, with the response \code{meta} as an
-attribute.
+A tibble, one row per match. Read its paging details with
+\code{\link[=lta_meta]{lta_meta()}}.
 }
 \description{
 \code{list_matches()} reads matches by lifecycle status. \code{live_matches()} is the
 same call with \code{status = "live"}. Live and upcoming matches are on the free
-plan; completed and cancelled listings are part of the history plans.
+plan. Completed results need a paid plan.
 }
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}

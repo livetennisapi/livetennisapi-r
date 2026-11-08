@@ -6,7 +6,9 @@
 \alias{livetennisapi-package}
 \title{livetennisapi: Client for the 'Live Tennis API'}
 \description{
-Read live and historical tennis data from the 'Live Tennis API' \url{https://livetennisapi.com} into R. Covers live scores, fixtures, players, tournaments, rankings, head-to-head records and the results archive from 1968 to 2022, for the ATP, WTA, Challenger, ITF and junior tours. List endpoints return data frames.
+\if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
+
+Read live and historical tennis data from the 'Live Tennis API' \url{https://livetennisapi.com} into R. Covers live scores, fixtures, players, tournaments, rankings, head-to-head records and the 1968 to 2022 results archive, for the ATP, WTA, Challenger and ITF tours. List endpoints return tibbles.
 }
 \seealso{
 Useful links:
@@ -19,7 +21,17 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Live Tennis API \email{hello@livetennisapi.com} [copyright holder]
+\strong{Maintainer}: Synapse Research Ltd \email{hello@livetennisapi.com}
+
+Authors:
+\itemize{
+  \item Synapse Research Ltd \email{hello@livetennisapi.com}
+}
+
+Other contributors:
+\itemize{
+  \item Live Tennis API [copyright holder]
+}
 
 }
 \keyword{internal}

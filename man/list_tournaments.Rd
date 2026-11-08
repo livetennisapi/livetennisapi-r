@@ -30,14 +30,14 @@ get_tournament(tournament_id, key = NULL)
 \item{limit}{Rows per page.}
 
 \item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
-\code{offset} until \code{attr(x, "meta")$has_more} is \code{FALSE}.}
+\code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 
 \item{tournament_id}{The tournament id.}
 }
 \value{
-\code{list_tournaments()} returns a data frame; \code{get_tournament()} a list.
+\code{list_tournaments()} returns a tibble, \code{get_tournament()} a list.
 }
 \description{
 \code{list_tournaments()} searches the tournament catalogue. \code{get_tournament()}

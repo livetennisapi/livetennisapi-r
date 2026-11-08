@@ -18,7 +18,7 @@ lta_base_url <- function() {
 #' @return The key as a string, or an error when it is not set.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
-#' # TRUE when a key is set; the key itself is never printed here.
+#' # TRUE when a key is set. The key itself is never printed.
 #' nzchar(lta_key())
 lta_key <- function() {
   key <- Sys.getenv("LIVETENNISAPI_KEY", "")
@@ -57,6 +57,61 @@ lta_query <- function(query) {
   query <- lapply(query, function(x) if (is.null(x)) NULL else x[!is.na(x)])
   query <- query[vapply(query, length, integer(1)) > 0L]
   lapply(query, lta_value)
+}
+
+# The retry policy matches the Python and JavaScript clients. A 5xx and the
+# per-minute 429 are worth another try. Two 429 bodies are not: the daily cap
+# (`scope: "day"`) holds for hours, and `abuse_throttled` is a 24-hour block
+# that retrying makes worse. Every other 4xx is a mistake no retry can fix.
+lta_transient <- function(resp) {
+  status <- httr2::resp_status(resp)
+  if (status >= 500L) return(TRUE)
+  if (status != 429L) return(FALSE)
+  body <- tryCatch(httr2::resp_body_json(resp), error = function(e) list())
+  if (!is.list(body)) return(TRUE)
+  !(identical(body$error, "abuse_throttled") || identical(body$scope, "day"))
+}
+
+# Wait what the API asks for in Retry-After, capped at a minute. NA hands the
+# decision to the backoff below.
+lta_retry_after <- function(resp) {
+  raw <- httr2::resp_header(resp, "Retry-After")
+  secs <- suppressWarnings(as.numeric(raw))
+  if (length(secs) != 1L || is.na(secs) || secs < 0) return(NA_real_)
+  min(secs, 60)
+}
+
+# Exponential with jitter, so clients that failed together do not retry
+# together. `i` counts from 1.
+lta_backoff <- function(i) min(0.5 * 2^(i - 1) + stats::runif(1) * 0.25, 10)
+
+# A seam for the tests, which replace it so retries run without waiting.
+lta_sleep <- function(seconds) Sys.sleep(seconds)
+
+# Send a request, retrying what lta_transient() allows. The loop lives here
+# rather than in httr2::req_retry() so the policy is the same whether the
+# transport is real or mocked, and so a dropped connection is retried too.
+lta_perform <- function(req, max_tries = 3L) {
+  for (attempt in seq_len(max_tries)) {
+    resp <- tryCatch(httr2::req_perform(req), httr2_failure = function(e) e)
+    last <- attempt == max_tries
+    if (inherits(resp, "error")) {
+      if (last) stop(lta_connection_error(resp))
+      lta_sleep(lta_backoff(attempt))
+      next
+    }
+    if (last || !lta_transient(resp)) return(resp)
+    wait <- lta_retry_after(resp)
+    lta_sleep(if (is.na(wait)) lta_backoff(attempt) else wait)
+  }
+}
+
+lta_connection_error <- function(parent) {
+  structure(
+    class = c("lta_connection_error", "lta_error", "error", "condition"),
+    list(message = paste0("Could not reach the Live Tennis API: ", conditionMessage(parent)),
+         call = NULL, status = NA_integer_, code = NA_character_, parent = parent)
+  )
 }
 
 lta_condition <- function(resp) {
@@ -98,10 +153,16 @@ lta_condition <- function(resp) {
 #'
 #' Failures raise a condition of class `lta_error`, with a subclass you can
 #' catch: `lta_auth_error` (401 or 403), `lta_plan_error` (the endpoint needs a
-#' higher plan), `lta_rate_limited` (429), `lta_not_found` (404) or
-#' `lta_bad_request` (400) or `lta_gone` (410: the record was merged into
-#' another, and the body says which). The condition carries `status`, `code`
-#' (the API's machine-readable error) and `body`.
+#' higher plan), `lta_rate_limited` (429), `lta_not_found` (404),
+#' `lta_bad_request` (400), `lta_gone` (410: the record was merged into
+#' another, and the body says which) or `lta_connection_error` (the API could
+#' not be reached). The condition carries `status`, `code`
+#' (the API's machine-readable error), `body` and `retry_after`.
+#'
+#' A call is tried up to three times. Dropped connections, server errors (5xx)
+#' and the per-minute 429 are retried, waiting what `Retry-After` asks for (at most a minute) or
+#' a short backoff. The daily-quota 429 and `abuse_throttled` are raised at
+#' once, because neither clears in seconds.
 #'
 #' @param path The endpoint path, for example `"/matches"`.
 #' @param query A named list of query parameters. `NULL` values are dropped.
@@ -124,14 +185,8 @@ lta_get <- function(path, query = list(), key = NULL, auth = TRUE, simplify = FA
   if (isTRUE(auth)) {
     req <- httr2::req_auth_bearer_token(req, if (is.null(key)) lta_key() else key)
   }
-  # Retry only failures that are worth retrying. A 429 is not one: the daily
-  # quota does not come back in a few seconds.
-  req <- httr2::req_retry(
-    req, max_tries = 3,
-    is_transient = function(resp) httr2::resp_status(resp) %in% c(502L, 503L, 504L)
-  )
   req <- httr2::req_error(req, is_error = function(resp) FALSE)
-  resp <- httr2::req_perform(req)
+  resp <- lta_perform(req)
   if (httr2::resp_status(resp) >= 400L) stop(lta_condition(resp))
   if (isTRUE(simplify)) {
     httr2::resp_body_json(resp, simplifyVector = TRUE, flatten = TRUE)
@@ -143,15 +198,31 @@ lta_get <- function(path, query = list(), key = NULL, auth = TRUE, simplify = FA
 # A list endpoint answers {data: [...], meta: {...}}. The body is parsed once
 # with simplification, so `data` arrives as a data frame with nested objects
 # flattened into columns such as players.p1.name, at full numeric precision.
-# `meta` is kept as an attribute for paging.
+# It goes out as a tibble, with `meta` kept as an attribute for paging.
 lta_frame <- function(body) {
   out <- body$data
-  if (!is.data.frame(out)) out <- data.frame()
+  out <- if (is.data.frame(out)) tibble::as_tibble(out) else tibble::tibble()
   attr(out, "meta") <- body$meta
   out
 }
 
-# GET a list endpoint and return its rows as a data frame.
+#' Paging details of a list result
+#'
+#' Every list function returns a tibble and keeps the response's `meta`
+#' object as an attribute. `lta_meta()` reads it back. It holds `limit`,
+#' `offset`, `count`, `total` (which can be `NULL`), `has_more` and, on the
+#' change feed, `next_cursor`. Subsetting a tibble drops the attribute, so
+#' read it from the result as it came back.
+#'
+#' @param x A tibble returned by a list function, such as [live_matches()].
+#' @return A list, or `NULL` when `x` carries no paging details.
+#' @export
+#' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
+#' fx <- list_fixtures(limit = 10)
+#' lta_meta(fx)$has_more
+lta_meta <- function(x) attr(x, "meta", exact = TRUE)
+
+# GET a list endpoint and return its rows as a tibble.
 lta_list <- function(path, query, key) {
   lta_frame(lta_get(path, query, key = key, simplify = TRUE))
 }

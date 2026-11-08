@@ -48,13 +48,13 @@ In the results archive they are tournament start dates.}
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 }
 \value{
-\code{archive_matches()} and \code{archive_players()} return data frames;
+\code{archive_matches()} and \code{archive_players()} return tibbles.
 \code{archive_career()} returns a list.
 }
 \description{
 \code{archive_matches()} searches past results. \code{archive_players()} returns
 player bios. \code{archive_career()} sums one player's career over the archive.
-These need a history plan.
+These need a paid plan, from Basic up.
 }
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}

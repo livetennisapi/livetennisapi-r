@@ -21,14 +21,14 @@ list_fixtures(
 \item{limit}{Rows per page.}
 
 \item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
-\code{offset} until \code{attr(x, "meta")$has_more} is \code{FALSE}.}
+\code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
 
 \item{...}{Other query parameters the endpoint accepts.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 }
 \value{
-A data frame, one row per fixture.
+A tibble, one row per fixture.
 }
 \description{
 Scheduled matches, earliest first.

@@ -1,3 +1,12 @@
+# livetennisapi 0.2.0
+
+* List functions return tibbles. `lta_meta()` reads a result's paging details.
+* Retries follow the Python and JavaScript clients: dropped connections, 5xx
+  and the per-minute 429 are retried, honouring `Retry-After` up to a minute. The daily-quota 429 and
+  `abuse_throttled` are raised at once. Conditions carry `retry_after`, and an
+  unreachable API raises `lta_connection_error`.
+* `rankings()` takes `as_of`, `offset` and other query parameters through `...`.
+
 # livetennisapi 0.1.0
 
 * First release: wrappers for live matches, fixtures, players, tournaments, the

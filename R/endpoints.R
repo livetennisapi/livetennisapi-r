@@ -19,7 +19,7 @@ api_usage <- function(key = NULL) lta_get("/usage", key = key)
 #'
 #' `list_matches()` reads matches by lifecycle status. `live_matches()` is the
 #' same call with `status = "live"`. Live and upcoming matches are on the free
-#' plan; completed and cancelled listings are part of the history plans.
+#' plan. Completed results need a paid plan.
 #'
 #' @param status One of `"live"`, `"upcoming"`, `"completed"` or `"cancelled"`.
 #' @param tour One of `"atp"`, `"wta"`, `"challenger"`, `"itf"` or `"juniors"`.
@@ -32,15 +32,15 @@ api_usage <- function(key = NULL) lta_get("/usage", key = key)
 #'   In the results archive they are tournament start dates.
 #' @param limit Rows per page.
 #' @param offset Rows to skip. To read a whole filtered set, add `limit` to
-#'   `offset` until `attr(x, "meta")$has_more` is `FALSE`.
+#'   `offset` until `lta_meta(x)$has_more` is `FALSE`.
 #' @param updated_since Read the change feed: rows changed at or after this
 #'   time, oldest first. Page it with `cursor`.
-#' @param cursor `attr(x, "meta")$next_cursor` from the previous change-feed
+#' @param cursor `lta_meta(x)$next_cursor` from the previous change-feed
 #'   page.
 #' @param ... Other query parameters the endpoint accepts.
 #' @inheritParams lta_get
-#' @return A data frame, one row per match, with the response `meta` as an
-#'   attribute.
+#' @return A tibble, one row per match. Read its paging details with
+#'   [lta_meta()].
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' live <- live_matches(tour = "atp")
@@ -90,7 +90,7 @@ match_score <- function(match_id, key = NULL) {
 #' Scheduled matches, earliest first.
 #'
 #' @inheritParams list_matches
-#' @return A data frame, one row per fixture.
+#' @return A tibble, one row per fixture.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' list_fixtures(tour = "wta", limit = 20)
@@ -104,7 +104,7 @@ list_fixtures <- function(tour = NULL, draw = NULL, limit = NULL, offset = NULL,
 #'
 #' `search_players()` finds players by name. `get_player()` returns one
 #' player's profile and ranking. `player_stats()` returns a player's record,
-#' with filters for dates, surface and level, and needs the PRO plan.
+#' with filters for dates, surface and level, and needs a paid plan.
 #'
 #' @param search A name or part of one.
 #' @param player_id The player id.
@@ -112,7 +112,7 @@ list_fixtures <- function(tour = NULL, draw = NULL, limit = NULL, offset = NULL,
 #' @param level A tour code, as in [list_matches()].
 #' @param last Only the most recent matches, this many.
 #' @inheritParams list_matches
-#' @return `search_players()` returns a data frame; the others return lists.
+#' @return `search_players()` returns a tibble. The others return lists.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' p <- search_players("alcaraz")
@@ -143,7 +143,7 @@ player_stats <- function(player_id, from = NULL, to = NULL, surface = NULL,
 #' @param tournament_id The tournament id.
 #' @inheritParams list_matches
 #' @inheritParams search_players
-#' @return `list_tournaments()` returns a data frame; `get_tournament()` a list.
+#' @return `list_tournaments()` returns a tibble, `get_tournament()` a list.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' list_tournaments(search = "open", tier = "grand_slam")
@@ -165,7 +165,7 @@ get_tournament <- function(tournament_id, key = NULL) {
 #'
 #' `archive_matches()` searches past results. `archive_players()` returns
 #' player bios. `archive_career()` sums one player's career over the archive.
-#' These need a history plan.
+#' These need a paid plan, from Basic up.
 #'
 #' @param name A player name, or part of one (at least three characters for
 #'   `archive_career()`).
@@ -174,7 +174,7 @@ get_tournament <- function(tournament_id, key = NULL) {
 #' @param level A level code such as `"G"` for a Grand Slam.
 #' @param offset Rows to skip, for paging.
 #' @inheritParams list_matches
-#' @return `archive_matches()` and `archive_players()` return data frames;
+#' @return `archive_matches()` and `archive_players()` return tibbles.
 #'   `archive_career()` returns a list.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
@@ -219,25 +219,29 @@ head_to_head <- function(p1, p2, key = NULL) {
 
 #' Rankings and Elo ratings
 #'
-#' With no `player`, returns the rank-ordered table for one official `system`,
-#' on the PRO plan. With `player`, returns those players' rankings, and Elo
-#' ratings (`system = "elo"` with a `tour`) come in four ladders: `"overall"`,
-#' `"hard"`, `"clay"` and `"grass"`. Both need the ULTRA plan.
+#' With no `player`, returns the rank-ordered table for one official `system`.
+#' With `player`, returns the ranking records those players held at `as_of`.
+#' Elo ratings (`system = "elo"` with a `tour`) come in four ladders:
+#' `"overall"`, `"hard"`, `"clay"` and `"grass"`. The plan each mode needs is
+#' on the pricing page, <https://livetennisapi.com/pricing>.
 #'
 #' @param system One or more of `"atp"`, `"wta"`, `"atp_doubles"`,
 #'   `"wta_doubles"`, `"itf_mt"`, `"itf_wt"`, `"itf_jt"`, `"utr"` or `"elo"`.
 #' @param tour `"atp"` or `"wta"`.
 #' @param surface The Elo ladder.
 #' @param player One or more player ids.
+#' @param as_of The date the records must be in force on, as a `Date` or a
+#'   `"YYYY-MM-DD"` string. The API's default is today.
 #' @inheritParams list_matches
-#' @return A data frame, one row per ranking record.
+#' @return A tibble, one row per ranking record.
 #' @export
 #' @examplesIf nzchar(Sys.getenv("LIVETENNISAPI_KEY"))
 #' rankings(system = "atp", limit = 100)
 #' rankings(system = "elo", tour = "wta", surface = "clay")
 rankings <- function(system = NULL, tour = NULL, surface = NULL, player = NULL,
-                     limit = NULL, key = NULL) {
-  query <- list(system = system, tour = tour, surface = surface, player = player,
-                limit = limit)
+                     as_of = NULL, limit = NULL, offset = NULL, ..., key = NULL) {
+  query <- c(list(system = system, tour = tour, surface = surface, player = player,
+                  as_of = as_of, limit = limit, offset = offset),
+             list(...))
   lta_list("/rankings", query, key)
 }

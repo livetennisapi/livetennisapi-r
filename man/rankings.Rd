@@ -9,7 +9,10 @@ rankings(
   tour = NULL,
   surface = NULL,
   player = NULL,
+  as_of = NULL,
   limit = NULL,
+  offset = NULL,
+  ...,
   key = NULL
 )
 }
@@ -23,18 +26,27 @@ rankings(
 
 \item{player}{One or more player ids.}
 
+\item{as_of}{The date the records must be in force on, as a \code{Date} or a
+\code{"YYYY-MM-DD"} string. The API's default is today.}
+
 \item{limit}{Rows per page.}
+
+\item{offset}{Rows to skip. To read a whole filtered set, add \code{limit} to
+\code{offset} until \code{lta_meta(x)$has_more} is \code{FALSE}.}
+
+\item{...}{Other query parameters the endpoint accepts.}
 
 \item{key}{The API key. Defaults to \code{\link[=lta_key]{lta_key()}}.}
 }
 \value{
-A data frame, one row per ranking record.
+A tibble, one row per ranking record.
 }
 \description{
-With no \code{player}, returns the rank-ordered table for one official \code{system},
-on the PRO plan. With \code{player}, returns those players' rankings, and Elo
-ratings (\code{system = "elo"} with a \code{tour}) come in four ladders: \code{"overall"},
-\code{"hard"}, \code{"clay"} and \code{"grass"}. Both need the ULTRA plan.
+With no \code{player}, returns the rank-ordered table for one official \code{system}.
+With \code{player}, returns the ranking records those players held at \code{as_of}.
+Elo ratings (\code{system = "elo"} with a \code{tour}) come in four ladders:
+\code{"overall"}, \code{"hard"}, \code{"clay"} and \code{"grass"}. The plan each mode needs is
+on the pricing page, \url{https://livetennisapi.com/pricing}.
 }
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}

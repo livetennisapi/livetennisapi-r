@@ -15,7 +15,7 @@ key, with no card, at \url{https://livetennisapi.com/subscribe/free}.
 }
 \examples{
 \dontshow{if (nzchar(Sys.getenv("LIVETENNISAPI_KEY"))) withAutoprint(\{ # examplesIf}
-# TRUE when a key is set; the key itself is never printed here.
+# TRUE when a key is set. The key itself is never printed.
 nzchar(lta_key())
 \dontshow{\}) # examplesIf}
 }
