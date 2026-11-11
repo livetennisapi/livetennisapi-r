@@ -1,3 +1,9 @@
+# livetennisapi (development version)
+
+* New vignette, "Today's tennis fixtures in R": read the schedule, reshape the
+  tibble and chart fixtures by tour and hour. It builds from recorded responses
+  in `inst/extdata`, so it needs no key.
+
 # livetennisapi 0.2.0
 
 * List functions return tibbles. `lta_meta()` reads a result's paging details.

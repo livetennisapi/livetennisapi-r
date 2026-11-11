@@ -63,6 +63,8 @@ rankings(system = "atp", limit = 100)
 rankings(system = "elo", tour = "wta", surface = "clay")
 ```
 
+The vignette [Today's tennis fixtures in R](vignettes/fixtures.Rmd) walks through a full example. It reads the day's schedule, reshapes the tibble and charts fixtures by tour and hour with ggplot2. [r-universe](https://livetennisapi.r-universe.dev/livetennisapi) builds the rendered page from this repository.
+
 List endpoints return a tibble with nested fields flattened into columns, such as `players.p1.name`. `lta_meta(x)` returns the paging details. To read a whole filtered set, raise `offset` by `limit` until `lta_meta(x)$has_more` is `FALSE`. Single resources come back as lists.
 
 ## Functions
