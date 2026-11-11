@@ -94,11 +94,15 @@ order of play gives the fixture a time. `status` is one of `scheduled`, `live`,
 `finished`, `cancelled` or `postponed`.
 
 `lta_meta()` reads the paging details of the result. When `has_more` is `TRUE`,
-call again with `offset` raised by `limit`.
+call again with `offset` raised by `limit`. Read every page before you count,
+or the chart misses the later fixtures.
 
 ```{r meta}
 lta_meta(fixtures)$has_more
 ```
+
+An empty schedule comes back with no rows and no columns. In a script, check
+`nrow(fixtures)` before you pick columns.
 
 ## Reshape the tibble
 
@@ -109,6 +113,7 @@ singles and doubles on the same tour in one group.
 
 ```{r reshape}
 today_fx <- fixtures[fixtures$event_date == format(today) & !is.na(fixtures$start_time), ]
+stopifnot("No fixture today has a start time yet." = nrow(today_fx) > 0)
 
 start <- as.POSIXct(today_fx$start_time, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")
 today_fx$hour <- as.integer(format(start, "%H", tz = "UTC"))
@@ -123,8 +128,11 @@ by_hour <- tibble::as_tibble(by_hour[by_hour$fixtures > 0, ])
 by_hour
 ```
 
-To count in your own time zone, pass its name as `tz` in the `format()` call,
-for example `tz = "Europe/London"`.
+The `stopifnot()` line ends the script with a clear message when there is
+nothing to count. That happens when today's order of play is not out yet.
+
+The hours are UTC. For local hours, pass your zone as `tz` in the `format()`
+call, for example `tz = "Europe/London"`, and change the axis label to match.
 
 ## Chart fixtures by tour and hour
 
@@ -139,10 +147,7 @@ ggplot(by_hour, aes(x = tour, y = hour, fill = fixtures)) +
   geom_tile(width = 0.94, height = 0.88) +
   geom_text(aes(label = fixtures), colour = "#1a1a19", size = 4) +
   scale_x_discrete(position = "top") +
-  scale_y_reverse(
-    breaks = seq(min(by_hour$hour), max(by_hour$hour)),
-    labels = function(h) sprintf("%02d:00", h)
-  ) +
+  scale_y_reverse(breaks = 0:23, labels = function(h) sprintf("%02d:00", h)) +
   scale_fill_gradient(low = "#cde2fb", high = "#5598e7", guide = "none") +
   labs(
     title = "Fixtures by tour and hour",
@@ -157,7 +162,8 @@ ggplot(by_hour, aes(x = tour, y = hour, fill = fixtures)) +
 
 `live_matches()` returns the matches in play, with the current score. Nested
 fields arrive as flat columns, such as `players.p1.name`. The result has no
-rows when nothing is in play, so check `nrow()` before you pick columns.
+columns when nothing is in play, and no `score.sets` column when no row has a
+score yet. Picking with `intersect()` keeps the code safe in both cases.
 
 ```{r read-live, eval = FALSE}
 live <- live_matches()
@@ -166,12 +172,12 @@ live <- live_matches()
 This output is also from a recorded response with made-up players.
 
 ```{r show-live}
-if (nrow(live) > 0) {
-  live[, c("tour", "tournament", "players.p1.name", "players.p2.name", "score.sets")]
-}
+wanted <- c("tour", "tournament", "players.p1.name", "players.p2.name", "score.sets")
+live[, intersect(wanted, names(live))]
 ```
 
-`score.sets` holds the sets won by each player. Here `tour` uses the same
+`score.sets` is a list column. Each entry holds the sets won by the first and
+the second player. Here `tour` uses the same
 values as the `tour` filter, so `live_matches(tour = "wta")` returns only the
 WTA rows.
 

@@ -24,7 +24,7 @@ test_that("the recorded fixtures carry every Fixture field", {
   expect_equal(nrow(fx), lta_meta(fx)$count)
   expect_false(lta_meta(fx)$has_more)
   expect_true(all(fx$status %in% c("scheduled", "live", "finished", "cancelled", "postponed")))
-  # Earliest first, with date-only fixtures after the timed ones of their day.
+  # Earliest day first. Some fixtures have a date and no start time yet.
   expect_false(is.unsorted(fx$event_date))
   expect_true(anyNA(fx$start_time))
   timed <- as.POSIXct(fx$start_time, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")
