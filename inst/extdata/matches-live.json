@@ -1,0 +1,349 @@
+{
+  "data": [
+    {
+      "id": 880401,
+      "tournament": "Stonebridge",
+      "tour": "challenger",
+      "tournament_id": null,
+      "tier": "challenger_75",
+      "tier_source": "calendar",
+      "surface": "clay",
+      "indoor": false,
+      "format": "BO3",
+      "round": "1/16-finals",
+      "round_code": "R32",
+      "is_qualifying": false,
+      "status": "live",
+      "event_status": null,
+      "event_status_updated_at": null,
+      "is_doubles": false,
+      "draw": "singles",
+      "scheduled_time": "2026-11-10T09:00:00Z",
+      "live_at": "2026-11-10T09:04:12Z",
+      "result_restated_at": null,
+      "result_version": 1,
+      "players": {
+        "p1": {
+          "id": 90211,
+          "name": "Tobin Varnholt",
+          "tour": "atp",
+          "country": "ger",
+          "ranking": 214,
+          "ranking_points": 268,
+          "ranking_status": "ranked",
+          "ranking_checked_at": "2026-11-09T04:10:00Z",
+          "ranking_movement": "same",
+          "itf_ranking": null,
+          "hand": "R",
+          "backhand": 2,
+          "birthday": "2001-03-14",
+          "is_doubles_team": false,
+          "profile_restated_at": null,
+          "profile_version": 1,
+          "archive_player_id": null,
+          "data_completeness": {
+            "known": 5,
+            "of": 5,
+            "missing": []
+          }
+        },
+        "p2": {
+          "id": 90212,
+          "name": "Emil Quenby",
+          "tour": "atp",
+          "country": "gbr",
+          "ranking": 187,
+          "ranking_points": 311,
+          "ranking_status": "ranked",
+          "ranking_checked_at": "2026-11-09T04:10:00Z",
+          "ranking_movement": "same",
+          "itf_ranking": null,
+          "hand": "L",
+          "backhand": 2,
+          "birthday": "1999-08-02",
+          "is_doubles_team": false,
+          "profile_restated_at": null,
+          "profile_version": 1,
+          "archive_player_id": null,
+          "data_completeness": {
+            "known": 5,
+            "of": 5,
+            "missing": []
+          }
+        }
+      },
+      "score": {
+        "sets": [
+          1,
+          0
+        ],
+        "games": [
+          [
+            6,
+            3
+          ],
+          [
+            4,
+            2
+          ]
+        ],
+        "points": [
+          "30",
+          "15"
+        ],
+        "server": 1,
+        "is_tiebreak": false,
+        "timestamp": "2026-11-10T10:41:07Z",
+        "accepted_at": "2026-11-10T10:40:51Z",
+        "sequence": 131,
+        "age_seconds": 9,
+        "stale": false,
+        "observed_age_seconds": 4,
+        "sources_count": 2,
+        "changing_sources_count": 2,
+        "corroborated": true,
+        "corroborated_age_seconds": 3,
+        "verdict": null
+      },
+      "winner": null,
+      "outcome": null,
+      "withdrew": null,
+      "has_analysis": false,
+      "has_market": false
+    },
+    {
+      "id": 880402,
+      "tournament": "Stonebridge",
+      "tour": "challenger",
+      "tournament_id": null,
+      "tier": "challenger_75",
+      "tier_source": "calendar",
+      "surface": "clay",
+      "indoor": false,
+      "format": "BO3",
+      "round": "1/16-finals",
+      "round_code": "R32",
+      "is_qualifying": false,
+      "status": "live",
+      "event_status": null,
+      "event_status_updated_at": null,
+      "is_doubles": false,
+      "draw": "singles",
+      "scheduled_time": "2026-11-10T09:00:00Z",
+      "live_at": "2026-11-10T09:02:40Z",
+      "result_restated_at": null,
+      "result_version": 1,
+      "players": {
+        "p1": {
+          "id": 90213,
+          "name": "Marek Odrazil",
+          "tour": "atp",
+          "country": "cze",
+          "ranking": 240,
+          "ranking_points": 231,
+          "ranking_status": "ranked",
+          "ranking_checked_at": "2026-11-09T04:10:00Z",
+          "ranking_movement": "same",
+          "itf_ranking": null,
+          "hand": "R",
+          "backhand": 2,
+          "birthday": "2002-11-23",
+          "is_doubles_team": false,
+          "profile_restated_at": null,
+          "profile_version": 1,
+          "archive_player_id": null,
+          "data_completeness": {
+            "known": 5,
+            "of": 5,
+            "missing": []
+          }
+        },
+        "p2": {
+          "id": 90214,
+          "name": "Pascal Skerrow",
+          "tour": "atp",
+          "country": "fra",
+          "ranking": null,
+          "ranking_points": null,
+          "ranking_status": "unranked",
+          "ranking_checked_at": "2026-11-09T04:10:00Z",
+          "ranking_movement": null,
+          "itf_ranking": null,
+          "hand": null,
+          "backhand": null,
+          "birthday": null,
+          "is_doubles_team": false,
+          "profile_restated_at": null,
+          "profile_version": 1,
+          "archive_player_id": null,
+          "data_completeness": {
+            "known": 1,
+            "of": 5,
+            "missing": [
+              "backhand",
+              "birthday",
+              "hand",
+              "ranking"
+            ]
+          }
+        }
+      },
+      "score": {
+        "sets": [
+          1,
+          1
+        ],
+        "games": [
+          [
+            4,
+            6,
+            1
+          ],
+          [
+            6,
+            3,
+            0
+          ]
+        ],
+        "points": [
+          "0",
+          "40"
+        ],
+        "server": 2,
+        "is_tiebreak": false,
+        "timestamp": "2026-11-10T10:41:07Z",
+        "accepted_at": "2026-11-10T10:40:39Z",
+        "sequence": 158,
+        "age_seconds": 21,
+        "stale": false,
+        "observed_age_seconds": 4,
+        "sources_count": 2,
+        "changing_sources_count": 2,
+        "corroborated": true,
+        "corroborated_age_seconds": 3,
+        "verdict": null
+      },
+      "winner": null,
+      "outcome": null,
+      "withdrew": null,
+      "has_analysis": false,
+      "has_market": false
+    },
+    {
+      "id": 880403,
+      "tournament": "Port Elm",
+      "tour": "wta",
+      "tournament_id": null,
+      "tier": "wta_250",
+      "tier_source": "calendar",
+      "surface": "hard",
+      "indoor": false,
+      "format": "BO3",
+      "round": "1/16-finals",
+      "round_code": "R32",
+      "is_qualifying": false,
+      "status": "live",
+      "event_status": null,
+      "event_status_updated_at": null,
+      "is_doubles": false,
+      "draw": "singles",
+      "scheduled_time": "2026-11-10T10:00:00Z",
+      "live_at": "2026-11-10T10:06:55Z",
+      "result_restated_at": null,
+      "result_version": 1,
+      "players": {
+        "p1": {
+          "id": 90101,
+          "name": "Lena Tamsin-Roe",
+          "tour": "wta",
+          "country": "aus",
+          "ranking": 58,
+          "ranking_points": 1042,
+          "ranking_status": "ranked",
+          "ranking_checked_at": "2026-11-09T04:10:00Z",
+          "ranking_movement": "same",
+          "itf_ranking": null,
+          "hand": "R",
+          "backhand": 2,
+          "birthday": "1998-05-30",
+          "is_doubles_team": false,
+          "profile_restated_at": null,
+          "profile_version": 1,
+          "archive_player_id": null,
+          "data_completeness": {
+            "known": 5,
+            "of": 5,
+            "missing": []
+          }
+        },
+        "p2": {
+          "id": 90102,
+          "name": "Kira Ebbrey",
+          "tour": "wta",
+          "country": "usa",
+          "ranking": 73,
+          "ranking_points": 866,
+          "ranking_status": "ranked",
+          "ranking_checked_at": "2026-11-09T04:10:00Z",
+          "ranking_movement": "same",
+          "itf_ranking": null,
+          "hand": "R",
+          "backhand": 2,
+          "birthday": "2003-01-17",
+          "is_doubles_team": false,
+          "profile_restated_at": null,
+          "profile_version": 1,
+          "archive_player_id": null,
+          "data_completeness": {
+            "known": 5,
+            "of": 5,
+            "missing": []
+          }
+        }
+      },
+      "score": {
+        "sets": [
+          0,
+          0
+        ],
+        "games": [
+          [
+            3
+          ],
+          [
+            4
+          ]
+        ],
+        "points": [
+          "40",
+          "A"
+        ],
+        "server": 2,
+        "is_tiebreak": false,
+        "timestamp": "2026-11-10T10:41:07Z",
+        "accepted_at": "2026-11-10T10:40:54Z",
+        "sequence": 52,
+        "age_seconds": 6,
+        "stale": false,
+        "observed_age_seconds": 4,
+        "sources_count": 2,
+        "changing_sources_count": 2,
+        "corroborated": true,
+        "corroborated_age_seconds": 3,
+        "verdict": null
+      },
+      "winner": null,
+      "outcome": null,
+      "withdrew": null,
+      "has_analysis": false,
+      "has_market": false
+    }
+  ],
+  "meta": {
+    "limit": 50,
+    "offset": 0,
+    "count": 3,
+    "total": null,
+    "has_more": false
+  }
+}

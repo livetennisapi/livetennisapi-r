@@ -1,0 +1,185 @@
+---
+title: "Today's tennis fixtures in R"
+description: >
+  Read today's tennis fixtures into R with the livetennisapi package. Reshape
+  the tibble and chart fixtures by tour and hour with ggplot2.
+lang: en-GB
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Today's tennis fixtures in R}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+options(width = 90, tibble.print_min = 6, tibble.print_max = 6)
+library(livetennisapi)
+
+has_ggplot2 <- requireNamespace("ggplot2", quietly = TRUE)
+
+# This page builds with no key and no network. The two calls it shows are
+# answered here from the recorded responses in inst/extdata, through the
+# package's own request code.
+recorded <- function(file) {
+  path <- system.file("extdata", file, package = "livetennisapi", mustWork = TRUE)
+  function(req) {
+    httr2::response(
+      status_code = 200L,
+      headers = list(`Content-Type` = "application/json"),
+      body = readBin(path, "raw", file.size(path))
+    )
+  }
+}
+fixtures <- httr2::with_mocked_responses(
+  recorded("fixtures.json"),
+  list_fixtures(limit = 200, key = "recorded")
+)
+live <- httr2::with_mocked_responses(
+  recorded("matches-live.json"),
+  live_matches(key = "recorded")
+)
+today <- as.Date("2026-11-10")
+```
+
+This vignette reads the day's tennis schedule from the
+[Live Tennis API](https://livetennisapi.com) into a tibble. It then counts the
+fixtures by tour and hour, and draws the counts with ggplot2.
+
+## Get a free API key
+
+Sign up at <https://livetennisapi.com/subscribe/free>. No card is needed. The
+free plan covers fixtures and live matches, at 30 requests a minute and 100 a
+day.
+
+## Put the key in your environment
+
+The package reads the key from the `LIVETENNISAPI_KEY` environment variable.
+Put it in `~/.Renviron` so every session has it, then restart R:
+
+```
+LIVETENNISAPI_KEY=twjp_...
+```
+
+For one session, set it from the console:
+
+```{r set-key, eval = FALSE}
+Sys.setenv(LIVETENNISAPI_KEY = "twjp_...")
+```
+
+## Read the fixtures
+
+`list_fixtures()` returns the schedule as a tibble, earliest fixture first. It
+takes `tour`, `draw`, `limit` and `offset`. A page holds up to 200 rows.
+
+```{r read-fixtures, eval = FALSE}
+library(livetennisapi)
+
+fixtures <- list_fixtures(limit = 200)
+today <- Sys.Date()
+```
+
+The output on this page comes from a recorded response that ships with the
+package. Its players and tournaments are made up, and its date is 10 November
+2026. That lets the page build with no key and no network. Your own call
+returns the same columns with the real schedule. The recorded file is at
+`system.file("extdata", "fixtures.json", package = "livetennisapi")`.
+
+```{r show-fixtures}
+fixtures[, c("event_date", "start_time", "tour", "tournament", "player1_name", "player2_name")]
+```
+
+Each row is one fixture. `start_time` is in UTC, and it stays `NA` until the
+order of play gives the fixture a time. `status` is one of `scheduled`, `live`,
+`finished`, `cancelled` or `postponed`.
+
+`lta_meta()` reads the paging details of the result. When `has_more` is `TRUE`,
+call again with `offset` raised by `limit`.
+
+```{r meta}
+lta_meta(fixtures)$has_more
+```
+
+## Reshape the tibble
+
+Keep today's fixtures that have a start time, then add the hour each one
+starts. The `tour` column is the fixture's own label. It can be finer than the
+`tour` filter, and a doubles pair reports it in capitals. Lower-casing it puts
+singles and doubles on the same tour in one group.
+
+```{r reshape}
+today_fx <- fixtures[fixtures$event_date == format(today) & !is.na(fixtures$start_time), ]
+
+start <- as.POSIXct(today_fx$start_time, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")
+today_fx$hour <- as.integer(format(start, "%H", tz = "UTC"))
+today_fx$tour <- tolower(today_fx$tour)
+
+by_hour <- as.data.frame(
+  table(tour = today_fx$tour, hour = today_fx$hour),
+  responseName = "fixtures", stringsAsFactors = FALSE
+)
+by_hour$hour <- as.integer(by_hour$hour)
+by_hour <- tibble::as_tibble(by_hour[by_hour$fixtures > 0, ])
+by_hour
+```
+
+To count in your own time zone, pass its name as `tz` in the `format()` call,
+for example `tz = "Europe/London"`.
+
+## Chart fixtures by tour and hour
+
+Each tile is one tour in one hour, and the number on it is the count of
+fixtures that start then. Hours run down the page, so the chart stays readable
+on a narrow screen.
+
+```{r chart, eval = has_ggplot2, fig.width = 5, fig.height = 5.2, dpi = 144, out.width = "100%", fig.alt = "Grid of fixture counts with one column for each tour and one row for each start hour in UTC. Each tile shows how many fixtures start in that hour on that tour."}
+library(ggplot2)
+
+ggplot(by_hour, aes(x = tour, y = hour, fill = fixtures)) +
+  geom_tile(width = 0.94, height = 0.88) +
+  geom_text(aes(label = fixtures), colour = "#1a1a19", size = 4) +
+  scale_x_discrete(position = "top") +
+  scale_y_reverse(
+    breaks = seq(min(by_hour$hour), max(by_hour$hour)),
+    labels = function(h) sprintf("%02d:00", h)
+  ) +
+  scale_fill_gradient(low = "#cde2fb", high = "#5598e7", guide = "none") +
+  labs(
+    title = "Fixtures by tour and hour",
+    subtitle = format(today, "%d %B %Y"),
+    x = NULL, y = "Start hour (UTC)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid = element_blank(), plot.title.position = "plot")
+```
+
+## See what is live now
+
+`live_matches()` returns the matches in play, with the current score. Nested
+fields arrive as flat columns, such as `players.p1.name`. The result has no
+rows when nothing is in play, so check `nrow()` before you pick columns.
+
+```{r read-live, eval = FALSE}
+live <- live_matches()
+```
+
+This output is also from a recorded response with made-up players.
+
+```{r show-live}
+if (nrow(live) > 0) {
+  live[, c("tour", "tournament", "players.p1.name", "players.p2.name", "score.sets")]
+}
+```
+
+`score.sets` holds the sets won by each player. Here `tour` uses the same
+values as the `tour` filter, so `live_matches(tour = "wta")` returns only the
+WTA rows.
+
+## Where to go next
+
+- The [API reference](https://docs.livetennisapi.com/reference.html) lists
+  every endpoint and field.
+- The [pricing page](https://livetennisapi.com/pricing) shows what each plan
+  opens.
+- The package [README](https://github.com/livetennisapi/livetennisapi-r#readme)
+  covers players, rankings, the results archive and error handling.
