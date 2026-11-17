@@ -1,6 +1,6 @@
 Package: livetennisapi
 Title: Client for the 'Live Tennis API'
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: c(
     person("Synapse Research Ltd", email = "hello@livetennisapi.com",
            role = c("aut", "cre")),
@@ -17,12 +17,12 @@ BugReports: https://github.com/livetennisapi/livetennisapi-r/issues
 Depends: R (>= 4.1)
 Imports:
     httr2 (>= 1.1.0),
+    jsonlite,
     stats,
     tibble (>= 3.0.0),
     utils
 Suggests:
     ggplot2,
-    jsonlite,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)

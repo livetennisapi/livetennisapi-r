@@ -1,5 +1,8 @@
-# livetennisapi (development version)
+# livetennisapi 0.2.1
 
+* jsonlite moves from Suggests to Imports. httr2 reads every response with
+  jsonlite but does not install it, so on a clean install of 0.2.0 every call
+  stopped with an error asking for jsonlite.
 * New vignette, "Today's tennis fixtures in R": read the schedule, reshape the
   tibble and chart fixtures by tour and hour. It builds from recorded responses
   in `inst/extdata`, so it needs no key.
